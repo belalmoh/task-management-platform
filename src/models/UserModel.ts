@@ -1,3 +1,4 @@
+// src/models/UserModel.ts
 import { db } from '../database/connection';
 
 export interface User {
@@ -6,14 +7,23 @@ export interface User {
 	password_hash: string;
 	first_name: string;
 	last_name: string;
-	role: string;
+	avatar_url?: string;
+	role: 'admin' | 'manager' | 'member';
 	is_active: boolean;
+	last_login?: Date;
 	created_at: Date;
 	updated_at: Date;
 }
 
 export class UserModel {
-	static async create(userData: any): Promise<User> {
+	// Add explicit type annotations
+	static async create(userData: {
+		email: string;
+		password_hash: string;
+		first_name: string;
+		last_name: string;
+		role?: 'admin' | 'manager' | 'member';
+	}): Promise<User> {
 		const [user] = await db('users')
 			.insert(userData)
 			.returning('*');
@@ -37,13 +47,42 @@ export class UserModel {
 		return user || null;
 	}
 
-	static async findAll(): Promise<{ users: User[]; total: number }> {
-		const users = await db('users')
-			.where({ is_active: true })
+	static async findAll(options: {
+		page?: number;
+		limit?: number;
+		role?: string;
+	} = {}): Promise<{ users: User[]; total: number }> {
+		const { page = 1, limit = 10, role } = options;
+		const offset = (page - 1) * limit;
+
+		let query = db('users').where({ is_active: true });
+
+		if (role) {
+			query = query.where({ role });
+		}
+
+		// Get total count
+		const totalResult = await query.clone().count('id as count').first();
+		const total = parseInt(totalResult?.count as string) || 0;
+
+		// Get paginated results
+		const users = await query
 			.select('*')
 			.orderBy('created_at', 'desc')
-			.limit(10);
+			.limit(limit)
+			.offset(offset);
 
-		return { users, total: users.length };
+		return { users, total };
+	}
+
+	static async emailExists(email: string, excludeId?: number): Promise<boolean> {
+		let query = db('users').where({ email });
+
+		if (excludeId) {
+			query = query.whereNot({ id: excludeId });
+		}
+
+		const user = await query.first();
+		return !!user;
 	}
 }
