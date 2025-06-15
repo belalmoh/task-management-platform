@@ -76,6 +76,14 @@ app.get('/test-users', catchAsync(async (req, res) => {
         total_users: result.total
     });
 }));
+
+app.post('/test-create-user', catchAsync(async (req, res) => {
+    const user = await UserModel.create({...req.body, password_hash: 'dummy_hash_for_testing'});
+    res.json({
+        message: 'User created successfully',
+        data: user
+    });
+}));
 // ------------------------------------------------------------
 
 app.get('*', (req, res, next) => {

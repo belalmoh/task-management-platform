@@ -8,7 +8,7 @@ export interface User {
 	first_name: string;
 	last_name: string;
 	avatar_url?: string;
-	role: 'admin' | 'manager' | 'member';
+	role: string;
 	is_active: boolean;
 	last_login?: Date;
 	created_at: Date;
@@ -16,14 +16,7 @@ export interface User {
 }
 
 export class UserModel {
-	// Add explicit type annotations
-	static async create(userData: {
-		email: string;
-		password_hash: string;
-		first_name: string;
-		last_name: string;
-		role?: 'admin' | 'manager' | 'member';
-	}): Promise<User> {
+	static async create(userData: any): Promise<User> {
 		const [user] = await db('users')
 			.insert(userData)
 			.returning('*');
@@ -47,42 +40,18 @@ export class UserModel {
 		return user || null;
 	}
 
-	static async findAll(options: {
-		page?: number;
-		limit?: number;
-		role?: string;
-	} = {}): Promise<{ users: User[]; total: number }> {
-		const { page = 1, limit = 10, role } = options;
-		const offset = (page - 1) * limit;
-
-		let query = db('users').where({ is_active: true });
-
-		if (role) {
-			query = query.where({ role });
-		}
-
-		// Get total count
-		const totalResult = await query.clone().count('id as count').first();
-		const total = parseInt(totalResult?.count as string) || 0;
-
-		// Get paginated results
-		const users = await query
+	static async findAll(): Promise<{ users: User[]; total: number }> {
+		const users = await db('users')
+			.where({ is_active: true })
 			.select('*')
 			.orderBy('created_at', 'desc')
-			.limit(limit)
-			.offset(offset);
+			.limit(10);
 
-		return { users, total };
+		return { users, total: users.length };
 	}
 
-	static async emailExists(email: string, excludeId?: number): Promise<boolean> {
-		let query = db('users').where({ email });
-
-		if (excludeId) {
-			query = query.whereNot({ id: excludeId });
-		}
-
-		const user = await query.first();
+	static async emailExists(email: string): Promise<boolean> {
+		const user = await db('users').where({ email }).first();
 		return !!user;
 	}
 }
