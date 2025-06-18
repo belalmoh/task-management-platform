@@ -4,6 +4,8 @@ import { authRateLimiter } from '../middleware/rateLimiter';
 import { catchAsync, AppError } from '../middleware/errorHandler';
 import { UserModel } from '../models/UserModel';
 import { JWTService } from '../utils/jwt';
+import { authenticate } from '../middleware/auth';
+import { redis } from '../database/redis';
 
 const router = Router();
 
@@ -23,7 +25,7 @@ router.post('/register', authRateLimiter, validate(schemas.userRegistration), ca
         last_name
     });
 
-    const tokenPair = JWTService.generateTokenPair(user);
+    const tokenPair = await JWTService.generateTokenPair(user);
 
     const sanitizedUser = await UserModel.sanitizeUser(user);
 
@@ -37,7 +39,7 @@ router.post('/register', authRateLimiter, validate(schemas.userRegistration), ca
     });
 }));
 
-router.post('/login', authRateLimiter, validate(schemas.userLogin), catchAsync(async (req, res) => {
+router.post('/login', authRateLimiter,validate(schemas.userLogin), catchAsync(async (req, res) => {
     const { email, password } = req.body;
 
     const user = await UserModel.authenticate(email, password);
@@ -46,7 +48,7 @@ router.post('/login', authRateLimiter, validate(schemas.userLogin), catchAsync(a
         throw new AppError('Invalid credentials', 401);
     }
 
-    const tokenPair = JWTService.generateTokenPair(user);
+    const tokenPair = await JWTService.generateTokenPair(user);
 
     const sanitizedUser = await UserModel.sanitizeUser(user);
 
@@ -69,13 +71,20 @@ router.post('/refresh', authRateLimiter, catchAsync(async (req, res) => {
 
     try {
         const decoded = JWTService.verifyRefreshToken(refreshToken);
+        const sessionData = await redis.getSession(decoded.session_id);
+        if(!sessionData) {
+            throw new AppError('Session is invalid or expired', 401);
+        }
+
         const user = await UserModel.findById(decoded.user_id);
 
         if(!user) {
             throw new AppError('User not found', 401);
         }
 
-        const tokenPair = JWTService.generateTokenPair(user);
+        const tokenPair = await JWTService.generateTokenPair(user);
+
+        await JWTService.invalidateSession(decoded.session_id, decoded.user_id);
 
         const sanitizedUser = await UserModel.sanitizeUser(user);
 
@@ -131,10 +140,34 @@ router.post('/verify', catchAsync(async (req, res) => {
     }
 }));
 
-router.post('/logout', authRateLimiter, catchAsync(async (req, res) => {
+router.post('/logout', catchAsync(async (req, res) => {
+    
+    const token = JWTService.extractTokenFromHeader(req.headers.authorization);
+
+    if(token) {
+        try {
+            const decoded = JWTService.verifyAccessToken(token);
+            await JWTService.blacklistToken(token);
+            await JWTService.invalidateSession(decoded.session_id, decoded.user_id);
+        } catch (error) {
+            throw new AppError('Logout token verification failed', 401);
+        }
+    }
+
     res.json({
         status: 'success',
         message: 'Logged out successfully'
+    });
+}));
+
+router.post('/logout-all', authenticate, catchAsync(async (req, res) => {
+    const userId = req.user?.id;
+
+    await JWTService.invalidateAllUserSessions(userId);
+
+    res.json({
+        status: 'success',
+        message: 'Logged out from all devices successfully'
     });
 }));
 

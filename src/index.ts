@@ -21,6 +21,40 @@ const apiRouter = Router();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// app.use((req, res, next) => {
+//     const originalSend = res.send;
+//     const originalJson = res.json;
+//     let responseSent = false;
+
+//     res.send = function (body) {
+//         if (responseSent) {
+//             console.error('🚨 DUPLICATE RESPONSE DETECTED!', {
+//                 url: req.originalUrl,
+//                 method: req.method,
+//                 body: body
+//             });
+//             return this;
+//         }
+//         responseSent = true;
+//         return originalSend.call(this, body);
+//     };
+
+//     res.json = function (body) {
+//         if (responseSent) {
+//             console.error('🚨 DUPLICATE JSON RESPONSE DETECTED!', {
+//                 url: req.originalUrl,
+//                 method: req.method,
+//                 body: body
+//             });
+//             return this;
+//         }
+//         responseSent = true;
+//         return originalJson.call(this, body);
+//     };
+
+//     next();
+// });
+
 app.get("/", (req, res) => {
     res.json({
         message: 'Task Management API is running!',
@@ -52,8 +86,8 @@ app.get('/health', catchAsync(async (req, res, next) => {
             uptime: process.uptime(),
             timestamp: new Date().toISOString(),
             services: {
-              database: 'disconnected',
-              redis: 'disconnected'
+                database: 'disconnected',
+                redis: 'disconnected'
             }
         });
     }
@@ -68,96 +102,6 @@ apiRouter.get(`/me`, authenticate, (req, res) => {
 });
 
 app.use(`/api/${API_VERSION}`, apiRouter);
-
-// ------------------------------------------------------------
-
-app.get('/test-users', catchAsync(async (req, res) => {
-    // Get all users
-    const result = await UserModel.findAll();
-    
-    res.json({
-        message: 'Users retrieved successfully',
-        data: result,
-        total_users: result.total
-    });
-}));
-
-app.post('/test-create-user', catchAsync(async (req, res) => {
-    const {email, first_name, last_name, password} = req.body;
-
-    if (!email || !first_name || !last_name || !password) {
-        throw new AppError('Email, first_name, last_name, and password are required', 400);
-    }
-
-    const existingUser = await UserModel.findByEmail(email);
-    if (existingUser) {
-        throw new AppError('User with this email already exists', 409);
-    }
-
-    const user = await UserModel.create({email, first_name, last_name, password});
-
-    const sanitizedUser = await UserModel.sanitizeUser(user);
-
-    res.json({
-        message: 'User created successfully',
-        data: sanitizedUser
-    });
-}));
-
-app.post('/test-login', catchAsync(async (req, res) => {
-    const {email, password} = req.body;
-
-    if (!email || !password) {
-        throw new AppError('Email and password are required', 400);
-    }
-
-    const user = await UserModel.authenticate(email, password);
-    if (!user) {
-        throw new AppError('Invalid email or password', 401);
-    }
-
-    const tokenPair = JWTService.generateTokenPair(user);
-
-    const sanitizedUser = await UserModel.sanitizeUser(user);
-
-    res.json({
-        message: 'Login successful',
-        data: sanitizedUser,
-        ...tokenPair
-    });
-}));
-
-app.get('/test-protected', authenticate, (req, res) => {
-    res.json({
-        message: 'This is a protected route',
-        user: req.user,
-        timestamp: new Date().toISOString()
-    });
-});
-
-app.post('/test-verify-token', catchAsync(async (req, res) => {
-    const {token} = req.body;
-
-    if(!token) {
-        throw new AppError('Token is required', 400);
-    }
-
-    try {
-        const decoded = JWTService.verifyAccessToken(token);
-        res.json({
-            message: 'Token verified successfully',
-            data: {
-                user_id: decoded.user_id,
-                email: decoded.email,
-                role: decoded.role,
-                expires_at: new Date(decoded.exp * 1000).toISOString()
-            },
-        });
-    } catch (error) {
-        throw new AppError('Invalid token', 401);
-    }
-}));
-// ------------------------------------------------------------
 
 app.get('*', (req, res, next) => {
     const error = new AppError(`Route ${req.originalUrl} not found`, 404);

@@ -2,11 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { JWTService } from '../utils/jwt';
 import { UserModel, User } from '../models/UserModel';
 import { AppError, catchAsync } from './errorHandler';
+import { redis } from '../database/redis';
 
 declare global {
     namespace Express {
         interface Request {
             user?: Omit<User, 'password_hash'>;
+            sessionId?: string;
         }
     }
 }
@@ -17,14 +19,30 @@ export const authenticate = catchAsync(async (req: Request, res: Response, next:
         throw new AppError('Authentication token is required', 401);
     }
 
+    const isBlacklisted = await JWTService.isTokenBlacklisted(token);
+    if(isBlacklisted) {
+        throw new AppError('Token has been revoked', 401);
+    }
+
     try {
         const decoded = JWTService.verifyAccessToken(token);
+
+        const sessionData = await redis.getSession(decoded.session_id);
+        if(!sessionData) {
+            throw new AppError('Session is invalid or expired', 401);
+        }
+
         const user = await UserModel.findById(decoded.user_id);
         if(!user) {
             throw new AppError('User not found or inactive', 401);
         }
 
+        await JWTService.updateSessionActivity(decoded.session_id);
+
+
         req.user = await UserModel.sanitizeUser(user);
+        req.sessionId = decoded.session_id;
+
         next();
     } catch (error) {
         if (error instanceof AppError) {
@@ -40,10 +58,19 @@ export const optionalAuthenticate = catchAsync(async (req: Request, res: Respons
     
     if(token) {
         try {
-            const decoded = JWTService.verifyAccessToken(token);
-            const user = await UserModel.findById(decoded.user_id);
-            if(user) {
-                req.user = await UserModel.sanitizeUser(user);
+            const isBlacklisted = await JWTService.isTokenBlacklisted(token);
+            if(!isBlacklisted) {
+                const decoded = JWTService.verifyAccessToken(token);
+                const sessionData = await redis.getSession(decoded.session_id);
+                
+                if(sessionData) {
+                    const user = await UserModel.findById(decoded.user_id);
+                    if(user) {
+                        req.user = await UserModel.sanitizeUser(user);
+                        req.sessionId = decoded.session_id;
+                        await JWTService.updateSessionActivity(decoded.session_id);
+                    }
+                }
             }
         } catch (error) {
             throw new AppError('Optional Authentication failed', 401);
