@@ -6,23 +6,31 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": false,
-    "noImplicitAny": false,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true,
     "removeComments": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "noEmitOnError": false,
+    "moduleResolution": "node",
+    "allowJs": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
     "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
-  ]
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "ts-node": {
+    "esm": false,
+    "experimentalSpecifierResolution": "node"
+  }
 }

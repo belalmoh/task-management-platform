@@ -28,39 +28,39 @@ export const validate = (schema: Joi.Schema) => {
 export const schemas = {
     userRegistration: Joi.object({
         email: Joi.string().email().required().messages({
-            'string.email': 'Invalid email address',
-            'any.required': 'Email is required',
+            'string.email': 'Please provide a valid email address',
+            'any.required': 'Email is required'
         }),
         password: Joi.string()
-            .min(8).
-            max(32).
-            pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/).
-            required().
-            messages({
-                'any.required': 'Password is required',
+            .min(8)
+            .max(128)
+            .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+            .required()
+            .messages({
                 'string.min': 'Password must be at least 8 characters long',
-                'string.max': 'Password must be less than 32 characters long',
+                'string.max': 'Password must be less than 128 characters',
                 'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-        }),
-        firstName: Joi.string().min(2).max(30).required().messages({
-            'any.required': 'First name is required',
+                'any.required': 'Password is required'
+            }),
+        first_name: Joi.string().min(2).max(50).required().messages({
             'string.min': 'First name must be at least 2 characters long',
-            'string.max': 'First name must be less than 30 characters long',
+            'string.max': 'First name must be less than 50 characters',
+            'any.required': 'First name is required'
         }),
-        lastName: Joi.string().min(2).max(30).required().messages({
-            'any.required': 'Last name is required',
+        last_name: Joi.string().min(2).max(50).required().messages({
             'string.min': 'Last name must be at least 2 characters long',
-            'string.max': 'Last name must be less than 30 characters long',
-        }),
+            'string.max': 'Last name must be less than 50 characters',
+            'any.required': 'Last name is required'
+        })
     }),
+
     userLogin: Joi.object({
         email: Joi.string().email().required().messages({
-            'string.email': 'Invalid email address',
-            'any.required': 'Email is required',
+            'string.email': 'Please provide a valid email address',
+            'any.required': 'Email is required'
         }),
-        password: Joi.string().required().min(8).messages({
-            'any.required': 'Password is required',
-            'string.min': 'Password must be at least 8 characters long',
-        }),
-    }),
+        password: Joi.string().required().messages({
+            'any.required': 'Password is required'
+        })
+    })
 }

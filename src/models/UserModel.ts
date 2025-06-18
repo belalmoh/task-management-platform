@@ -1,5 +1,6 @@
 // src/models/UserModel.ts
 import { db } from '../database/connection';
+import { hashPassword, verifyPassword } from '../utils';
 
 export interface User {
 	id: number;
@@ -17,8 +18,11 @@ export interface User {
 
 export class UserModel {
 	static async create(userData: any): Promise<User> {
+		const {email, first_name, last_name, password} = userData;
+		
+		const hashedPassword = await hashPassword(password);
 		const [user] = await db('users')
-			.insert(userData)
+			.insert({email, first_name, last_name, password_hash: hashedPassword})
 			.returning('*');
 
 		return user;
@@ -30,6 +34,13 @@ export class UserModel {
 			.first();
 
 		return user || null;
+	}
+
+	static async authenticate(email: string, password: string): Promise<User | null> {
+		const user = await this.findByEmail(email);
+		if (!user) return null;
+		const isValid = await verifyPassword(password, user.password_hash);
+		return isValid ? user : null;
 	}
 
 	static async findById(id: number): Promise<User | null> {
@@ -53,5 +64,10 @@ export class UserModel {
 	static async emailExists(email: string): Promise<boolean> {
 		const user = await db('users').where({ email }).first();
 		return !!user;
+	}
+
+	static async sanitizeUser(user: User): Promise<Omit<User, 'password_hash'>> {
+		const { password_hash, ...userWithoutPassword } = user;
+		return userWithoutPassword;
 	}
 }
