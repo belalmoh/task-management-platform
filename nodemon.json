@@ -1,10 +1,9 @@
 {
-    "watch": ["src"],
-    "ext": "ts,json",
-    "ignore": ["src/**/*.spec.ts"],
-    "exec": "ts-node --transpile-only src/index.ts",
-    "env": {
-      "NODE_ENV": "development"
-    },
-    "legacyWatch": true
+  "watch": ["src"],
+  "ext": "ts,js,json",
+  "ignore": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "exec": "tsx src/index.ts",
+  "env": {
+    "NODE_ENV": "development"
+  }
 }

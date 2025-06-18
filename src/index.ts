@@ -55,7 +55,7 @@ app.get('/health', catchAsync(async (req, res, next) => {
     }
 }));
 
-apiRouter.use(`auth`, authRoutes);
+apiRouter.use(`/auth`, authRoutes);
 apiRouter.get(`/me`, authenticate, (req, res) => {
     res.json({
         message: 'User retrieved successfully',

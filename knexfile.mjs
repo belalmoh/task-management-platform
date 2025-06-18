@@ -1,12 +1,8 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
 
-require('ts-node').register({
-    compilerOptions: {
-        module: 'commonjs'
-    }
-});
+dotenv.config();
 
-module.exports = {
+export default {
     development: {
         client: 'postgresql',
         connection: {

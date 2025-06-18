@@ -6,7 +6,7 @@ const attempts = new Map<string, {count: number, timestamp: number}>();
 export const authRateLimiter = (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const now = Date.now();
-    const windowMs = 15 * 60 * 1000;
+    const windowMs = 1000;
     const maxAttempts = 5;
 
     const resetTime = now + windowMs;

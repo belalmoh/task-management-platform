@@ -1,6 +1,6 @@
 import knex from 'knex';
 
-const config = require('../../knexfile');
+import config from '../../knexfile.mjs';
 
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = config[environment];
