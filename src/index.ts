@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { errorHandler, AppError, catchAsync } from './middleware/errorHandler';
 import { schemas, validate } from "./middleware/validation";
 import { db } from './database/connection';
+import { redis } from './database/redis';
 
 import { UserModel } from './models/UserModel';
 import { JWTService } from "./utils/jwt";
@@ -31,6 +32,7 @@ app.get("/", (req, res) => {
 app.get('/health', catchAsync(async (req, res, next) => {
     try {
         await db.raw('SELECT 1');
+        const redisHealthy = await redis.ping();
         res.json({
             status: 'healthy',
             uptime: process.uptime(),
@@ -38,8 +40,9 @@ app.get('/health', catchAsync(async (req, res, next) => {
             services: {
                 database: {
                     status: 'connected',
-                    uptime: process.uptime(),
-                    timestamp: new Date().toISOString()
+                },
+                redis: {
+                    status: redisHealthy ? 'connected' : 'disconnected'
                 }
             }
         });
@@ -49,7 +52,8 @@ app.get('/health', catchAsync(async (req, res, next) => {
             uptime: process.uptime(),
             timestamp: new Date().toISOString(),
             services: {
-              database: 'disconnected'
+              database: 'disconnected',
+              redis: 'disconnected'
             }
         });
     }
