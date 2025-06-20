@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <div id="messages"></div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="sendPing()">Send Ping</button>
+
+    <script>
+        let ws = null;
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo2LCJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwicm9sZSI6Im1lbWJlciIsInNlc3Npb25faWQiOiJhMTJjMmY4NGU4OTEwYzkzOWViZmFiMDQ4OTc0ZWQ3ZGNiOGU5YjE4NTFkYTAyMzY5MjRlMDZmNzFjNjJlMDcyIiwiaWF0IjoxNzUwNDM4NTMwLCJleHAiOjE3NTEwNDMzMzB9.R2yANqcuFjMIYbSTm9rtDGBI215ETQsjG7c03cctlpo'; // Replace with actual token from login
+
+        function connect() {
+            ws = new WebSocket(`ws://localhost:3001/ws?token=${token}`);
+            
+            ws.onopen = function() {
+                addMessage('Connected to WebSocket!');
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                addMessage(`Received: ${JSON.stringify(message, null, 2)}`);
+            };
+            
+            ws.onclose = function() {
+                addMessage('WebSocket connection closed');
+            };
+            
+            ws.onerror = function(error) {
+                addMessage(`WebSocket error: ${error}`);
+            };
+        }
+
+        function disconnect() {
+            if (ws) ws.close();
+        }
+
+        function sendPing() {
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'ping',
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        }
+
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.innerHTML = `<pre>${message}</pre>`;
+            document.getElementById('messages').appendChild(div);
+        }
+    </script>
+</body>
+</html>

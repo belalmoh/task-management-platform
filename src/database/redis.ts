@@ -49,7 +49,7 @@ connectRedis();
 
 
 export class RedisService {
-    private client: RedisClientType;
+    public client: RedisClientType;
 
     constructor() {
         this.client = redisClient;

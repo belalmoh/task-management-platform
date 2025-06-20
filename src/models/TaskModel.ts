@@ -52,4 +52,21 @@ export class Task {
         return tasks;
     }
 
+    static async update(id: number, updateData: Partial<Task>): Promise<ITask | null> {
+        const [task] = await db('tasks')
+            .where({ id })
+            .update({
+                ...updateData,
+                updated_at: new Date()
+            })
+            .returning('*');
+
+        return task || null;
+    }
+
+    static async delete(id: number): Promise<boolean> {
+        const result = await db('tasks').where({ id }).del();
+        
+        return result > 0;
+    }
 }

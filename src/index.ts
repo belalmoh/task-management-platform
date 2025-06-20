@@ -1,15 +1,14 @@
 import express, { Router } from "express";
 import dotenv from "dotenv";
 import { errorHandler, AppError, catchAsync } from './middleware/errorHandler';
-import { schemas, validate } from "./middleware/validation";
 import { db } from './database/connection';
 import { redis } from './database/redis';
 
-import { JWTService } from "./utils/jwt";
 import { authenticate } from "./middleware/auth";
 import authRoutes from './routes/auth';
+import taskRoutes from './routes/tasks';
+import './websocket/server';
 import { Project } from "./models/ProjectModel";
-import { Task } from "./models/TaskModel";
 
 const app = express();
 
@@ -21,40 +20,6 @@ const apiRouter = Router();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// app.use((req, res, next) => {
-//     const originalSend = res.send;
-//     const originalJson = res.json;
-//     let responseSent = false;
-
-//     res.send = function (body) {
-//         if (responseSent) {
-//             console.error('🚨 DUPLICATE RESPONSE DETECTED!', {
-//                 url: req.originalUrl,
-//                 method: req.method,
-//                 body: body
-//             });
-//             return this;
-//         }
-//         responseSent = true;
-//         return originalSend.call(this, body);
-//     };
-
-//     res.json = function (body) {
-//         if (responseSent) {
-//             console.error('🚨 DUPLICATE JSON RESPONSE DETECTED!', {
-//                 url: req.originalUrl,
-//                 method: req.method,
-//                 body: body
-//             });
-//             return this;
-//         }
-//         responseSent = true;
-//         return originalJson.call(this, body);
-//     };
-
-//     next();
-// });
 
 app.get("/", (req, res) => {
     res.json({
@@ -95,6 +60,28 @@ app.get('/health', catchAsync(async (req, res, next) => {
 }));
 
 apiRouter.use(`/auth`, authRoutes);
+apiRouter.use(`/tasks`, taskRoutes);
+
+apiRouter.post('/test-project', authenticate, catchAsync(async (req, res) => {
+    const { name, description } = req.body;
+
+    if (!name) {
+        throw new AppError('Project name is required', 400);
+    }
+
+    const project = await Project.create({
+        name,
+        description,
+        owner_id: req.user!.id  // Uses the authenticated user's ID
+    });
+
+    res.status(201).json({
+        status: 'success',
+        message: 'Project created successfully',
+        data: project
+    });
+}));
+
 apiRouter.get(`/me`, authenticate, (req, res) => {
     res.json({
         message: 'User retrieved successfully',
@@ -115,4 +102,6 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🌐 URL: http://localhost:${PORT}`);
+    // console.log(`📚 API Docs: http://localhost:${PORT}/api/${API_VERSION}`);
+    console.log(`🔌 WebSocket: ws://localhost:3001/ws`);
 });
