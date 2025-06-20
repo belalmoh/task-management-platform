@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { User } from '../models/UserModel';
+import { IUser } from '../models/UserModel';
 import { redis } from '../database/redis';
 import { randomBytes } from 'crypto';
 
@@ -32,7 +32,7 @@ export class JWTService {
         return randomBytes(32).toString('hex');
     }
 
-    static generateAccessToken(user: User, sessionId: string): string {
+    static generateAccessToken(user: IUser, sessionId: string): string {
         const payload = {
             user_id: user.id,
             email: user.email,
@@ -43,7 +43,7 @@ export class JWTService {
         return jwt.sign(payload, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn });
     }
 
-    static generateRefreshToken(user: User, sessionId: string): string {
+    static generateRefreshToken(user: IUser, sessionId: string): string {
         const payload = {
             user_id: user.id,
             session_id: sessionId,
@@ -52,7 +52,7 @@ export class JWTService {
         return jwt.sign(payload, jwtConfig.refreshSecret, { expiresIn: jwtConfig.refreshExpiresIn });
     }
 
-    static async generateTokenPair(user: User): Promise<TokenPair> {
+    static async generateTokenPair(user: IUser): Promise<TokenPair> {
         const sessionId = this.generateSessionId();
         const accessToken = this.generateAccessToken(user, sessionId);
         const refreshToken = this.generateRefreshToken(user, sessionId);

@@ -113,7 +113,10 @@ export class RedisService {
     async getSession(sessionId: string): Promise<any | null> {
         try {
             const value = await this.get(`session:${sessionId}`);
-            return value ? JSON.parse(value as string) : null;
+            if(typeof value === 'string') {
+                return JSON.parse(value as string);
+            }
+            return value as any;
         } catch (error) {
             console.error('❌ Redis getSession error:', error);
             throw error;

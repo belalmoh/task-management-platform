@@ -115,6 +115,11 @@
   dependencies:
     bcryptjs "*"
 
+"@types/bluebird@*":
+  version "3.5.42"
+  resolved "https://registry.npmjs.org/@types/bluebird/-/bluebird-3.5.42.tgz"
+  integrity sha512-Jhy+MWRlro6UjVi578V/4ZGNfeCOcNCp0YaFNIUGFKlImowqwb1O/22wDVk3FDGMLqxdpOV3qQHD5fPEH4hK6A==
+
 "@types/body-parser@*":
   version "1.19.6"
   resolved "https://registry.npmjs.org/@types/body-parser/-/body-parser-1.19.6.tgz"
@@ -168,6 +173,14 @@
   integrity sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==
   dependencies:
     "@types/ms" "*"
+    "@types/node" "*"
+
+"@types/knex@^0.15.2":
+  version "0.15.2"
+  resolved "https://registry.npmjs.org/@types/knex/-/knex-0.15.2.tgz"
+  integrity sha512-mw8OT8v+FK0SsgDdmio2XSkEM/yLD7ybFtiqW7I65EDTlr2aZtG+p9FhryErpNJDJ2FEXgQhe3JVBG0Gh7YbvQ==
+  dependencies:
+    "@types/bluebird" "*"
     "@types/node" "*"
 
 "@types/mime@^1":

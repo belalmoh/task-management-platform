@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { JWTService } from '../utils/jwt';
-import { UserModel, User } from '../models/UserModel';
+import { User, IUser } from '../models/UserModel';
 import { AppError, catchAsync } from './errorHandler';
 import { redis } from '../database/redis';
 
 declare global {
     namespace Express {
         interface Request {
-            user?: Omit<User, 'password_hash'>;
+            user?: Omit<IUser, 'password_hash'>;
             sessionId?: string;
         }
     }
@@ -32,7 +32,7 @@ export const authenticate = catchAsync(async (req: Request, res: Response, next:
             throw new AppError('Session is invalid or expired', 401);
         }
 
-        const user = await UserModel.findById(decoded.user_id);
+        const user = await User.findById(decoded.user_id);
         if(!user) {
             throw new AppError('User not found or inactive', 401);
         }
@@ -40,7 +40,7 @@ export const authenticate = catchAsync(async (req: Request, res: Response, next:
         await JWTService.updateSessionActivity(decoded.session_id);
 
 
-        req.user = await UserModel.sanitizeUser(user);
+        req.user = await User.sanitizeUser(user);
         req.sessionId = decoded.session_id;
 
         next();
@@ -64,9 +64,9 @@ export const optionalAuthenticate = catchAsync(async (req: Request, res: Respons
                 const sessionData = await redis.getSession(decoded.session_id);
                 
                 if(sessionData) {
-                    const user = await UserModel.findById(decoded.user_id);
+                    const user = await User.findById(decoded.user_id);
                     if(user) {
-                        req.user = await UserModel.sanitizeUser(user);
+                        req.user = await User.sanitizeUser(user);
                         req.sessionId = decoded.session_id;
                         await JWTService.updateSessionActivity(decoded.session_id);
                     }

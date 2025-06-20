@@ -5,10 +5,11 @@ import { schemas, validate } from "./middleware/validation";
 import { db } from './database/connection';
 import { redis } from './database/redis';
 
-import { UserModel } from './models/UserModel';
 import { JWTService } from "./utils/jwt";
 import { authenticate } from "./middleware/auth";
 import authRoutes from './routes/auth';
+import { Project } from "./models/ProjectModel";
+import { Task } from "./models/TaskModel";
 
 const app = express();
 

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { validate, schemas } from '../middleware/validation';
 import { authRateLimiter } from '../middleware/rateLimiter';
 import { catchAsync, AppError } from '../middleware/errorHandler';
-import { UserModel } from '../models/UserModel';
+import { User } from '../models/UserModel';
 import { JWTService } from '../utils/jwt';
 import { authenticate } from '../middleware/auth';
 import { redis } from '../database/redis';
@@ -12,13 +12,13 @@ const router = Router();
 router.post('/register', authRateLimiter, validate(schemas.userRegistration), catchAsync(async (req, res) => {
     const { email, password, first_name, last_name } = req.body;
 
-    const existingUser = await UserModel.findByEmail(email);
+    const existingUser = await User.findByEmail(email);
 
     if(existingUser) {
         throw new AppError('User with this email already exists', 400);
     }
 
-    const user = await UserModel.create({
+    const user = await User.create({
         email,
         password,
         first_name,
@@ -27,7 +27,7 @@ router.post('/register', authRateLimiter, validate(schemas.userRegistration), ca
 
     const tokenPair = await JWTService.generateTokenPair(user);
 
-    const sanitizedUser = await UserModel.sanitizeUser(user);
+    const sanitizedUser = await User.sanitizeUser(user);
 
     res.status(201).json({
         status: 'success',
@@ -42,7 +42,7 @@ router.post('/register', authRateLimiter, validate(schemas.userRegistration), ca
 router.post('/login', authRateLimiter,validate(schemas.userLogin), catchAsync(async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await UserModel.authenticate(email, password);
+    const user = await User.authenticate(email, password);
 
     if(!user) {
         throw new AppError('Invalid credentials', 401);
@@ -50,7 +50,7 @@ router.post('/login', authRateLimiter,validate(schemas.userLogin), catchAsync(as
 
     const tokenPair = await JWTService.generateTokenPair(user);
 
-    const sanitizedUser = await UserModel.sanitizeUser(user);
+    const sanitizedUser = await User.sanitizeUser(user);
 
     res.json({
         status: 'success',
@@ -76,7 +76,7 @@ router.post('/refresh', authRateLimiter, catchAsync(async (req, res) => {
             throw new AppError('Session is invalid or expired', 401);
         }
 
-        const user = await UserModel.findById(decoded.user_id);
+        const user = await User.findById(decoded.user_id);
 
         if(!user) {
             throw new AppError('User not found', 401);
@@ -86,7 +86,7 @@ router.post('/refresh', authRateLimiter, catchAsync(async (req, res) => {
 
         await JWTService.invalidateSession(decoded.session_id, decoded.user_id);
 
-        const sanitizedUser = await UserModel.sanitizeUser(user);
+        const sanitizedUser = await User.sanitizeUser(user);
 
         res.json({
             status: 'success',
@@ -110,13 +110,13 @@ router.post('/verify', catchAsync(async (req, res) => {
 
     try {
         const decoded = JWTService.verifyAccessToken(token);
-        const user = await UserModel.findById(decoded.user_id);
+        const user = await User.findById(decoded.user_id);
 
         if(!user) {
             throw new AppError('User not found', 401);
         }
 
-        const sanitizedUser = await UserModel.sanitizeUser(user);
+        const sanitizedUser = await User.sanitizeUser(user);
         res.json({
             status: 'success',
             message: 'Token is valid',
