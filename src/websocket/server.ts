@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { JWTService } from '../utils/jwt';
 import { IUser, User } from '../models/UserModel';
 import { redis } from '../database/redis';
+import { Project } from '../models/ProjectModel';
 
 interface IAuthenticatedWebSocket extends WebSocket {
     userId: number;
@@ -34,12 +35,12 @@ export class WebSocketManager {
     }
 
     private setupWebSocketHandlers() {
-        this.wss.on('connection', async(ws: IAuthenticatedWebSocket, request: Request) => {
+        this.wss.on('connection', async (ws: IAuthenticatedWebSocket, request: Request) => {
             console.log('🔌 New WebSocket connection attempt');
 
             try {
                 let token: string | undefined;
-        
+
                 if (request.url) {
                     const urlParts = request.url.split('?');
                     if (urlParts.length > 1) {
@@ -48,7 +49,7 @@ export class WebSocketManager {
                         token = params.get('token') || undefined;
                     }
                 }
-                
+
                 if (!token && request.headers['authorization']) {
                     token = request.headers['authorization'].replace('Bearer ', '');
                 }
@@ -56,37 +57,39 @@ export class WebSocketManager {
                 const decoded = JWTService.verifyAccessToken(token);
                 const isBlacklisted = await JWTService.isTokenBlacklisted(token);
 
-                if(isBlacklisted) {
+                if (isBlacklisted) {
                     this.sendError(ws, 'Token has been revoked');
                     ws.close(1008, 'Token revoked');
                     return;
                 }
 
                 const sessionData = await redis.getSession(decoded.session_id);
-                if(!sessionData) {
+                if (!sessionData) {
                     this.sendError(ws, 'Session is invalid or expired');
                     ws.close(1008, 'Session invalid or expired');
                     return;
                 }
 
                 const user = await User.findById(decoded.user_id);
-                if(!user) {
+                if (!user) {
                     this.sendError(ws, 'User not found or inactive');
                     ws.close(1008, 'User not found or inactive');
                     return;
                 }
 
+
                 ws.userId = user.id;
                 ws.sessionId = decoded.session_id;
                 ws.user = user;
 
-                if(!this.clients.has(user.id)) {
+                if (!this.clients.has(user.id)) {
                     this.clients.set(user.id, new Set());
                 }
 
                 this.clients.get(user.id)!.add(ws);
 
                 await this.updateUserPresence(user.id, 'online');
+                await this.autoJoinUserProjects(ws);
 
                 this.sendMessage(ws, {
                     type: 'connection_success',
@@ -96,7 +99,7 @@ export class WebSocketManager {
                     },
                     timestamp: new Date().toISOString(),
                 });
-                
+
                 this.broadcastUserPresence(user.id, 'online');
                 console.log(`🔌 Client ${user.email} connected via WebSocket`);
 
@@ -128,13 +131,13 @@ export class WebSocketManager {
 
     private async handleMessage(ws: IAuthenticatedWebSocket, message: IWebSocketMessage) {
         console.log('🔍 Received message from user:', ws.userId, message);
-        if(!ws.userId) {
+        if (!ws.userId) {
             return;
         }
 
         console.log('🔍 Received message from user:', ws.userId, message);
 
-        switch(message.type) {
+        switch (message.type) {
             case 'ping':
                 this.sendMessage(ws, {
                     type: 'pong',
@@ -156,7 +159,7 @@ export class WebSocketManager {
     }
 
     private async handleJoinProject(ws: IAuthenticatedWebSocket, projectId: string) {
-        if(!projectId || !ws.userId) return;
+        if (!projectId || !ws.userId) return;
 
         // TODO: Verify user has access to this project
 
@@ -172,7 +175,7 @@ export class WebSocketManager {
     }
 
     private async handleLeaveProject(ws: IAuthenticatedWebSocket, projectId: string) {
-        if(!projectId || !ws.userId) return;
+        if (!projectId || !ws.userId) return;
 
         await redis.client.sRem(`project_room:${projectId}`, ws.userId.toString());
         this.sendMessage(ws, {
@@ -186,25 +189,25 @@ export class WebSocketManager {
     }
 
     private async handleTaskUpdate(ws: IAuthenticatedWebSocket, payload: any) {
-        if(!payload.project_id || !ws.userId) return;
+        if (!payload.project_id || !ws.userId) return;
 
         await this.broadcastToProject(payload.project_id, {
             type: 'task_update',
             payload: {
-              ...payload,
-              updated_by: ws.user
+                ...payload,
+                updated_by: ws.user
             },
             timestamp: new Date().toISOString()
-          }, ws.userId);
+        }, ws.userId);
     }
 
     private async handleDisconnect(ws: IAuthenticatedWebSocket) {
-        if(!ws.userId) return;
+        if (!ws.userId) return;
 
         const userConnections = this.clients.get(ws.userId);
-        if(userConnections) {
+        if (userConnections) {
             userConnections.delete(ws);
-            if(userConnections.size === 0) {
+            if (userConnections.size === 0) {
                 this.clients.delete(ws.userId);
                 await this.updateUserPresence(ws.userId, 'offline');
                 this.broadcastUserPresence(ws.userId, 'offline');
@@ -214,6 +217,7 @@ export class WebSocketManager {
     }
 
     private async updateUserPresence(userId: number, status: 'online' | 'offline'): Promise<void> {
+        console.log('🔍 Updating user presence:', userId, status);
         await redis.set(`user_presence:${userId}`, status, 300); // 5 minutes TTL
     }
 
@@ -227,8 +231,8 @@ export class WebSocketManager {
             timestamp: new Date().toISOString(),
         };
 
-        for(const [_, connections] of this.clients) {
-            for(const connection of connections) {
+        for (const [_, connections] of this.clients) {
+            for (const connection of connections) {
                 this.sendMessage(connection, message);
             }
         }
@@ -237,12 +241,12 @@ export class WebSocketManager {
     public async broadcastToProject(projectId: number, message: IWebSocketMessage, excludeUserId?: number) {
         try {
             const userIds = await redis.client.sMembers(`project_room:${projectId}`);
-            for(const userIdStr of userIds) {
+            for (const userIdStr of userIds) {
                 const userId = parseInt(userIdStr);
-                if(userId !== excludeUserId) {
+                if (userId !== excludeUserId) {
                     const connections = this.clients.get(userId);
-                    if(connections) {
-                        for(const ws of connections) {
+                    if (connections) {
+                        for (const ws of connections) {
                             this.sendMessage(ws, message);
                         }
                     }
@@ -300,6 +304,55 @@ export class WebSocketManager {
 
         await this.broadcastToProject(projectId, message);
         console.log(`📡 Broadcasted task_${action} to project ${projectId}`);
+    }
+
+    private async autoJoinUserProjects(ws: IAuthenticatedWebSocket): Promise<void> {
+        if (!ws.userId) return;
+
+        try {
+            const userProjects = await Project.findByOwnerId(ws.userId);
+            console.log('🔍 User projects:', userProjects);
+            for (const project of userProjects) {
+                await redis.client.sAdd(`project_room:${project.id}`, ws.userId.toString());
+                console.log(`🔗 Auto-joined user ${ws.userId} to project room ${project.id}`);
+            }
+
+            this.sendMessage(ws, {
+                type: 'auto_join_projects',
+                payload: {
+                    projects: userProjects.map(p => ({ id: p.id, name: p.name }))
+                },
+                timestamp: new Date().toISOString(),
+            });
+        } catch (error) {
+            console.error('Error auto-joining user projects:', error);
+        }
+    }
+
+    public async broadcastPresenceUpdate(userId: number, presence: any): Promise<void> {
+        const message = {
+            type: 'presence_updated',
+            payload: presence,
+            timestamp: new Date().toISOString()
+        };
+
+        // Broadcast to all connected users
+        for (const [_, connections] of this.clients) {
+            for (const ws of connections) {
+                this.sendMessage(ws, message);
+            }
+        }
+    }
+
+    public async broadcastActivityUpdate(activity: any): Promise<void> {
+        const message = {
+            type: 'activity_created',
+            payload: activity,
+            timestamp: new Date().toISOString()
+        };
+
+        // Broadcast to project members
+        await this.broadcastToProject(activity.project_id, message);
     }
 }
 

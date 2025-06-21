@@ -11,7 +11,7 @@
 
     <script>
         let ws = null;
-        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo2LCJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwicm9sZSI6Im1lbWJlciIsInNlc3Npb25faWQiOiJhMTJjMmY4NGU4OTEwYzkzOWViZmFiMDQ4OTc0ZWQ3ZGNiOGU5YjE4NTFkYTAyMzY5MjRlMDZmNzFjNjJlMDcyIiwiaWF0IjoxNzUwNDM4NTMwLCJleHAiOjE3NTEwNDMzMzB9.R2yANqcuFjMIYbSTm9rtDGBI215ETQsjG7c03cctlpo'; // Replace with actual token from login
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo2LCJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwicm9sZSI6Im1lbWJlciIsInNlc3Npb25faWQiOiIyODhkNTBiMmJhMDM1YjY3MGM4ODhiZDI5ZjUzZDI5ODI5NmEzMDY1ODQwNGM0NzhiYmFiYzNiNDk1NDZjMTEzIiwiaWF0IjoxNzUwNDkwODI3LCJleHAiOjE3NTEwOTU2Mjd9.Bq2egBkmgyP4xm_PCIOZKC6O9Q7BIbBks4ac0tXFAfE'; // Replace with actual token from login
 
         function connect() {
             ws = new WebSocket(`ws://localhost:3001/ws?token=${token}`);

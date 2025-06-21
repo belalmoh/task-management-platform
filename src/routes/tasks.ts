@@ -5,6 +5,9 @@ import { authenticate } from "../middleware/auth";
 import { Task } from "../models/TaskModel";
 import { Project } from "../models/ProjectModel";
 import { webSocketManager } from "../websocket/server";
+import { ActivityService } from "../services/ActivityService";
+import { PresenceService } from "../services/PresenceService";
+
 import Joi from "joi";
 
 const router = Router();
@@ -42,19 +45,19 @@ router.get('/', authenticate, catchAsync(async (req, res) => {
 
     let tasks;
 
-    if(project_id) {
+    if (project_id) {
         tasks = await Task.findByProjectId(parseInt(project_id as string));
-    } else if(assignee_id) {
+    } else if (assignee_id) {
         tasks = await Task.findByAssigneeId(parseInt(assignee_id as string));
     } else {
         tasks = await Task.findByAssigneeId(req.user!.id);
     }
 
-    if(status) {
+    if (status) {
         tasks = tasks.filter((task) => task.status === status);
     }
 
-    if(priority) {
+    if (priority) {
         tasks = tasks.filter((task) => task.priority === priority);
     }
 
@@ -69,12 +72,12 @@ router.get('/', authenticate, catchAsync(async (req, res) => {
 
 router.get('/:id', authenticate, catchAsync(async (req, res) => {
     const taskId = parseInt(req.params.id);
-    if(isNaN(taskId)) {
+    if (isNaN(taskId)) {
         throw new AppError('Task not found', 404);
     }
 
     const task = await Task.findById(taskId);
-    if(!task) {
+    if (!task) {
         throw new AppError('Task not found', 404);
     }
 
@@ -90,7 +93,7 @@ router.post('/', authenticate, validate(taskSchemas.createTask), catchAsync(asyn
     const { project_id, ...taskData } = req.body;
 
     const project = await Project.findById(project_id);
-    if(!project) {
+    if (!project) {
         throw new AppError('Project not found', 404);
     }
 
@@ -99,6 +102,8 @@ router.post('/', authenticate, validate(taskSchemas.createTask), catchAsync(asyn
         project_id,
         creator_id: req.user!.id
     });
+
+    await ActivityService.logTaskCreated(req.user!.id, `${req.user!.first_name} ${req.user!.last_name}`, project_id, task.id, task.title);
 
     await webSocketManager.broadcastToProject(project_id, {
         type: 'task_created',
@@ -118,17 +123,17 @@ router.post('/', authenticate, validate(taskSchemas.createTask), catchAsync(asyn
             task
         }
     });
-    
+
 }));
 
 router.put('/:id', authenticate, validate(taskSchemas.updateTask), catchAsync(async (req, res) => {
     const taskId = parseInt(req.params.id);
-    if(isNaN(taskId)) {
+    if (isNaN(taskId)) {
         throw new AppError('Invalid task ID', 400);
     }
 
     const task = await Task.findById(taskId);
-    if(!task) {
+    if (!task) {
         throw new AppError('Task not found', 404);
     }
 
@@ -137,7 +142,7 @@ router.put('/:id', authenticate, validate(taskSchemas.updateTask), catchAsync(as
         updated_at: new Date()
     });
 
-    if(!updatedTask) {
+    if (!updatedTask) {
         throw new AppError('Failed to update task', 500);
     }
 
@@ -148,6 +153,25 @@ router.put('/:id', authenticate, validate(taskSchemas.updateTask), catchAsync(as
             changes[key] = { old_value: oldValue, new_value: newValue };
         }
     }
+
+    await ActivityService.logTaskUpdated(
+        req.user!.id,
+        `${req.user!.first_name} ${req.user!.last_name}`,
+        task.project_id,
+        updatedTask.id,
+        updatedTask.title,
+        changes
+    );
+
+    if (changes.status?.new_value === 'done' && changes.status?.old_value !== 'done') {
+        await ActivityService.logTaskCompleted(
+          req.user!.id,
+          `${req.user!.first_name} ${req.user!.last_name}`,
+          task.project_id,
+          updatedTask.id,
+          updatedTask.title
+        );
+      }
 
     await webSocketManager.broadcastToProject(task.project_id, {
         type: 'task_updated',
@@ -173,17 +197,17 @@ router.put('/:id', authenticate, validate(taskSchemas.updateTask), catchAsync(as
 
 router.delete('/:id', authenticate, catchAsync(async (req, res) => {
     const taskId = parseInt(req.params.id);
-    if(isNaN(taskId)) {
+    if (isNaN(taskId)) {
         throw new AppError('Invalid task ID', 400);
     }
-    
+
     const task = await Task.findById(taskId);
-    if(!task) {
+    if (!task) {
         throw new AppError('Task not found', 404);
     }
 
     const deletedTask = await Task.delete(taskId);
-    if(!deletedTask) {
+    if (!deletedTask) {
         throw new AppError('Failed to delete task', 500);
     }
 

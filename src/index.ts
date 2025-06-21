@@ -62,6 +62,20 @@ app.get('/health', catchAsync(async (req, res, next) => {
 apiRouter.use(`/auth`, authRoutes);
 apiRouter.use(`/tasks`, taskRoutes);
 
+apiRouter.get('/debug/project-rooms/:projectId', authenticate, catchAsync(async (req, res) => {
+    const projectId = parseInt(req.params.projectId);
+    const usersInRoom = await redis.client.sMembers(`project_room:${projectId}`);
+
+    res.json({
+        status: 'success',
+        data: {
+            project_id: projectId,
+            users_in_room: usersInRoom.map(id => parseInt(id)),
+            room_size: usersInRoom.length
+        }
+    });
+}));
+
 apiRouter.post('/test-project', authenticate, catchAsync(async (req, res) => {
     const { name, description } = req.body;
 
